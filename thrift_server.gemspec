@@ -21,6 +21,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "statsd-ruby"
   spec.add_dependency "middleware"
   spec.add_dependency "concord"
+  spec.add_dependency "honeybadger"
+  spec.add_dependency "thrift"
 
   spec.add_development_dependency "bundler", "~> 1.6"
   spec.add_development_dependency "rake"

@@ -40,3 +40,21 @@ def Processor(*rpcs)
     end
   end
 end
+
+# Monkey patch attr readers to test various server settings
+module Thrift
+  class ServerSocket
+    attr_reader :port
+  end
+
+  class ThreadPoolServer
+    attr_reader :server_transport, :transport_factory, :protocol_factory
+    def threads
+      @thread_q.max
+    end
+
+    def port
+      server_transport.port
+    end
+  end
+end

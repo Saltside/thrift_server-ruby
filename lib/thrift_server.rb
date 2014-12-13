@@ -1,8 +1,11 @@
 require "thrift_server/version"
 
+require 'thrift'
 require 'middleware'
 require 'concord'
 require 'forwardable'
+require 'honeybadger'
+require 'statsd-ruby'
 
 require_relative 'thrift_server/logging_middleware'
 require_relative 'thrift_server/metrics_middleware'
@@ -50,6 +53,14 @@ class ThriftServer
   end
 
   class << self
+    def build(processor, handler, options = { }, &block)
+      stack = wrap(processor, options, &block).new handler
+      transport = Thrift::ServerSocket.new options.fetch(:port, 9090)
+      transport_factory = Thrift::FramedTransportFactory.new
+
+      Thrift::ThreadPoolServer.new stack, transport, transport_factory, nil, options.fetch(:threads, 4)
+    end
+
     def wrap(processor, options = { })
       rpcs = processor.instance_methods.select { |m| m =~ /^process_(.+)$/ }
 

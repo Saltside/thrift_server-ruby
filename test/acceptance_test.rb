@@ -115,4 +115,111 @@ class AcceptanceTest < MiniTest::Unit::TestCase
 
     stack.process_getItems :request
   end
+
+  def test_build_returns_thread_pool_server
+    handler = stub getItems: :response
+    server = ThriftServer.build(processor, handler, {
+      logger: NullLogger.new,
+      statsd: FakeStatsd.new,
+      error_tracker: NullErrorTracker.new
+    })
+
+    assert_instance_of Thrift::ThreadPoolServer, server
+  end
+
+  def test_build_defaults_to_port_9090
+    handler = stub getItems: :response
+    server = ThriftServer.build(processor, handler, {
+      logger: NullLogger.new,
+      statsd: FakeStatsd.new,
+      error_tracker: NullErrorTracker.new
+    })
+
+    assert_equal 9090, server.port
+  end
+
+  def test_build_accepts_port_options
+    handler = stub getItems: :response
+    server = ThriftServer.build(processor, handler, {
+      logger: NullLogger.new,
+      statsd: FakeStatsd.new,
+      error_tracker: NullErrorTracker.new,
+      port: 5000
+    })
+
+    assert_equal 5000, server.port
+  end
+
+  def test_build_defaults_to_4_threads
+    handler = stub getItems: :response
+    server = ThriftServer.build(processor, handler, {
+      logger: NullLogger.new,
+      statsd: FakeStatsd.new,
+      error_tracker: NullErrorTracker.new
+    })
+
+    assert_equal 4, server.threads
+  end
+
+  def test_build_accepts_threads_option
+    handler = stub getItems: :response
+    server = ThriftServer.build(processor, handler, {
+      logger: NullLogger.new,
+      statsd: FakeStatsd.new,
+      error_tracker: NullErrorTracker.new,
+      threads: 8
+    })
+
+    assert_equal 8, server.threads
+  end
+
+  def test_builds_creates_server_with_framed_transport
+    handler = stub getItems: :response
+    server = ThriftServer.build(processor, handler, {
+      logger: NullLogger.new,
+      statsd: FakeStatsd.new,
+      error_tracker: NullErrorTracker.new
+    })
+
+    assert_instance_of Thrift::FramedTransportFactory, server.transport_factory
+  end
+
+  def test_build_uses_server_socket_transport
+    handler = stub getItems: :response
+    server = ThriftServer.build(processor, handler, {
+      logger: NullLogger.new,
+      statsd: FakeStatsd.new,
+      error_tracker: NullErrorTracker.new
+    })
+
+    assert_instance_of Thrift::ServerSocket, server.server_transport
+  end
+
+  def test_build_creates_server_with_binary_protocol
+    handler = stub getItems: :response
+    server = ThriftServer.build(processor, handler, {
+      logger: NullLogger.new,
+      statsd: FakeStatsd.new,
+      error_tracker: NullErrorTracker.new
+    })
+
+    assert_instance_of Thrift::BinaryProtocolFactory, server.protocol_factory
+  end
+
+  def test_buil_accepts_a_block_to_customize_the_middleware_stack
+    handler = stub getItems: :response
+    block_yielded = false
+
+    server = ThriftServer.build(processor, handler, {
+      logger: NullLogger.new,
+      statsd: FakeStatsd.new,
+      error_tracker: NullErrorTracker.new
+    }) do |stack|
+      block_yielded = true
+
+      assert_instance_of ThriftServer::MiddlewareStack, stack
+    end
+
+    assert block_yielded, 'Block not used'
+  end
 end
