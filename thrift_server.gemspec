@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["adam@saltside.se"]
   spec.summary       = %q{Encapsulate error handling, logging, and metrics for thrift servers}
   spec.description   = %q{}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/saltside/thrift_server-ruby"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
