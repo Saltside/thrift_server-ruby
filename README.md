@@ -93,6 +93,13 @@ created to wrap each method call to pass through the stack before
 calling the defined handler. A subclass of the processor is defined to
 wrap the handler provided in `initialize` in the delegate class.
 
+## Development
+
+    $ vagrant up
+    $ vagrant ssh
+    $ cd /vagrant
+    $ make test-ci
+
 ## Contributing
 
 1. Create your feature branch (`git checkout -b my-new-feature`)
