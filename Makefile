@@ -4,9 +4,6 @@ APP:=thrift_server
 
 APP_RUN:=docker run --rm -t -v $(CURDIR):/usr/src/app $(APP)
 
-Gemfile.lock: Gemfile thrift_server.gemspec
-	docker run --rm -t -v $(CURDIR):/data -e BUNDLE_GEMFILE=/data/Gemfile ruby:2.1 /data/script/bundle.sh
-
 gen-rb/echo_service.rb: echo_service.thrift
 	docker run --rm -t -v $(CURDIR):/data registry.platform.saltside.io/platform/thrift:0.9.2 \
 		-o /data --gen rb /data/$<
@@ -14,7 +11,7 @@ gen-rb/echo_service.rb: echo_service.thrift
 .PHONY: thrift
 thrift: gen-rb/echo_service.rb
 
-tmp/image: Dockerfile Gemfile.lock lib/thrift_server/version.rb thrift_server.gemspec
+tmp/image: Dockerfile Gemfile lib/thrift_server/version.rb thrift_server.gemspec
 	docker build -t $(APP) .
 	mkdir -p $(@D)
 	docker inspect -f '{{.Id}}' $(APP) >> $@
