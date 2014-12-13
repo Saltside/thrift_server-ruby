@@ -48,7 +48,7 @@ available:
 
 * `logger:` - a `Logger` instance
 * `statsd:` - a `Statsd` instance from the [statsd-ruby gem](https://github.com/reinh/statsd)
-* `error_tracker:` object that implement `#track(rpc, error). Use
+* `error_tracker:` object that implement `#track(rpc, error)`. Use
   `ThriftServer::HoneybaderErrorTracker` if unsure
 * `threads:` - number of threads to run. Defaults to `4`
 * `port:` - port to run server on. Defaults to `9090`
