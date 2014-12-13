@@ -5,8 +5,8 @@ APP:=thrift_server
 APP_RUN:=docker run --rm -t -v $(CURDIR):/usr/src/app $(APP)
 
 gen-rb/echo_service.rb: echo_service.thrift
-	docker run --rm -t -v $(CURDIR):/data registry.platform.saltside.io/platform/thrift:0.9.2 \
-		-o /data --gen rb /data/$<
+	docker run --rm -t -v $(CURDIR):/data thrift:0.9.2 \
+		thrift -o /data --gen rb /data/$<
 
 .PHONY: thrift
 thrift: gen-rb/echo_service.rb
