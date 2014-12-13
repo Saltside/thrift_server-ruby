@@ -24,7 +24,7 @@ test-unit: tmp/image
 	$(APP_RUN) bundle exec rake
 
 .PHONY: test-network
-test-network: tmp/image
+test-network: tmp/image gen-rb/echo_service.rb
 	-@docker stop server > /dev/null 2>&1
 	-@docker rm -v server > /dev/null 2>&1
 	docker run -d --name server -v $(CURDIR):/usr/src/app $(APP) ruby echo_server.rb
