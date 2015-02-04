@@ -27,6 +27,25 @@ class MetricsMiddlewareTest < MiniTest::Unit::TestCase
     assert_equal rpc.name, statsd.timer
   end
 
+  def test_increments_a_counter_on_successful_rpcs
+    app = stub call: :result
+
+    statsd = Class.new FakeStatsd do
+      attr_reader :counter
+
+      def increment(*args)
+        @counter = args.first
+      end
+    end.new
+
+    middleware = ThriftServer::MetricsMiddleware.new(app, statsd)
+
+    middleware.call rpc
+
+    assert statsd.counter, 'Counter not updated'
+    assert_equal rpc.name, statsd.counter
+  end
+
   def test_increments_a_counter_on_failed_rpcs
     app = stub
     app.stubs(:call).raises(TestError)

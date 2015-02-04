@@ -6,6 +6,8 @@ class ThriftServer
       statsd.time rpc.name do
         app.call rpc
       end
+
+      statsd.increment rpc.name
     rescue => ex
       statsd.increment 'errors'
       raise ex
