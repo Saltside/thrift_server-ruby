@@ -39,5 +39,5 @@ clean:
 	-docker rm -v server > /dev/null 2>&1
 	@mkdir -p tmp
 	@touch tmp/image
-	cat tmp/image | xargs --no-run-if-empty docker rmi
+	-cat tmp/image | xargs --no-run-if-empty docker rmi
 	rm -rf tmp/image
