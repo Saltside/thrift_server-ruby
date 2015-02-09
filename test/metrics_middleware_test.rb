@@ -1,70 +1,42 @@
 require_relative 'test_helper'
 
 class MetricsMiddlewareTest < MiniTest::Unit::TestCase
+  TestError = Class.new StandardError
+
   attr_reader :rpc
 
   def setup
     @rpc = ThriftServer::RPC.new :foo, :bar
   end
 
-  def test_times_the_rpc
+  def test_happy_path_call
     app = stub call: :result
 
-    statsd = Class.new FakeStatsd do
-      attr_reader :timer
-
-      def time(*args)
-        @timer = args.first
-        yield
-      end
-    end.new
+    statsd = mock
+    statsd.expects(:increment).with('thrift.rpc.incoming')
+    statsd.expects(:increment).with('thrift.rpc.success')
+    statsd.expects(:time).with('thrift.rpc.latency').yields.returns(:response)
 
     middleware = ThriftServer::MetricsMiddleware.new(app, statsd)
 
-    middleware.call rpc
+    response = middleware.call rpc
 
-    assert statsd.timer, 'Timer not recorded'
-    assert_equal rpc.name, statsd.timer
+    assert_equal :response, response
   end
 
-  def test_increments_a_counter_on_successful_rpcs
-    app = stub call: :result
-
-    statsd = Class.new FakeStatsd do
-      attr_reader :counter
-
-      def increment(*args)
-        @counter = args.first
-      end
-    end.new
-
-    middleware = ThriftServer::MetricsMiddleware.new(app, statsd)
-
-    middleware.call rpc
-
-    assert statsd.counter, 'Counter not updated'
-    assert_equal rpc.name, statsd.counter
-  end
-
-  def test_increments_a_counter_on_failed_rpcs
+  def test_rpc_raises_an_error
     app = stub
     app.stubs(:call).raises(TestError)
 
-    statsd = Class.new FakeStatsd do
-      attr_reader :counter
-
-      def increment(*args)
-        @counter = args.first
-      end
-    end.new
+    statsd = mock
+    statsd.expects(:increment).with('thrift.rpc.incoming')
+    statsd.expects(:increment).with('thrift.rpc.error')
+    statsd.expects(:time).with('thrift.rpc.latency').yields.returns(:response)
 
     middleware = ThriftServer::MetricsMiddleware.new(app, statsd)
 
     assert_raises TestError do
       middleware.call rpc
     end
-
-    assert statsd.counter, 'Counter not updated'
-    assert_equal 'errors', statsd.counter
   end
 end
