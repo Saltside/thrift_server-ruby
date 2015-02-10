@@ -13,9 +13,9 @@ class RpcMetricsMiddlewareTest < MiniTest::Unit::TestCase
     app = stub call: :result
 
     statsd = mock
-    statsd.expects(:increment).with('thrift.foo.incoming')
-    statsd.expects(:increment).with('thrift.foo.success')
-    statsd.expects(:time).with('thrift.foo.latency').yields.returns(:response)
+    statsd.expects(:increment).with('rpc.foo.incoming')
+    statsd.expects(:increment).with('rpc.foo.success')
+    statsd.expects(:time).with('rpc.foo.latency').yields.returns(:response)
 
     middleware = ThriftServer::RpcMetricsMiddleware.new(app, statsd)
 
@@ -29,9 +29,9 @@ class RpcMetricsMiddlewareTest < MiniTest::Unit::TestCase
     app.stubs(:call).raises(TestError)
 
     statsd = mock
-    statsd.expects(:increment).with('thrift.foo.incoming')
-    statsd.expects(:increment).with('thrift.foo.error')
-    statsd.expects(:time).with('thrift.foo.latency').yields.returns(:response)
+    statsd.expects(:increment).with('rpc.foo.incoming')
+    statsd.expects(:increment).with('rpc.foo.error')
+    statsd.expects(:time).with('rpc.foo.latency').yields.returns(:response)
 
     middleware = ThriftServer::RpcMetricsMiddleware.new(app, statsd)
 

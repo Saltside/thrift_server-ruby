@@ -8,7 +8,7 @@ require 'honeybadger'
 require 'statsd-ruby'
 
 require_relative 'thrift_server/logging_middleware'
-require_relative 'thrift_server/metrics_middleware'
+require_relative 'thrift_server/server_metrics_middleware'
 require_relative 'thrift_server/rpc_metrics_middleware'
 require_relative 'thrift_server/error_tracking_middleware'
 require_relative 'thrift_server/honeybadger_error_tracker'
@@ -79,7 +79,7 @@ class ThriftServer
 
       stack = MiddlewareStack.new
       stack.use ErrorTrackingMiddleware, error_tracker
-      stack.use MetricsMiddleware, statsd
+      stack.use ServerMetricsMiddleware, statsd
       stack.use RpcMetricsMiddleware, statsd
       stack.use LoggingMiddleware, logger
 
