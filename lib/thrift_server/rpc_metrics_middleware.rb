@@ -3,17 +3,17 @@ class ThriftServer
     include Concord.new(:app, :statsd)
 
     def call(rpc)
-      statsd.increment "thrift.#{rpc.name}.incoming"
+      statsd.increment "rpc.#{rpc.name}.incoming"
 
-      response = statsd.time "thrift.#{rpc.name}.latency" do
+      response = statsd.time "rpc.#{rpc.name}.latency" do
         app.call rpc
       end
 
-      statsd.increment "thrift.#{rpc.name}.success"
+      statsd.increment "rpc.#{rpc.name}.success"
 
       response
     rescue => ex
-      statsd.increment "thrift.#{rpc.name}.error"
+      statsd.increment "rpc.#{rpc.name}.error"
       raise ex
     end
   end
