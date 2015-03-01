@@ -4,7 +4,6 @@ RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
 ADD Gemfile /usr/src/app/Gemfile
-ADD Gemfile.lock /usr/src/Gemfile.lock
 ADD lib/thrift_server/version.rb /usr/src/app/lib/thrift_server/version.rb
 ADD thrift_server.gemspec /usr/src/app/thrift_server.gemspec
 
