@@ -5,7 +5,7 @@ class ThriftServer
     def call(rpc)
       app.call rpc
     rescue => ex
-      logger.track rpc, ex
+      logger.track rpc, ex unless rpc.protocol_exception? ex
       raise ex
     end
   end

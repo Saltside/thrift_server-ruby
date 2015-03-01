@@ -13,7 +13,12 @@ class ThriftServer
 
       response
     rescue => ex
-      statsd.increment 'rpc.error'
+      if rpc.protocol_exception? ex
+        statsd.increment 'rpc.exception'
+      else
+        statsd.increment 'rpc.error'
+      end
+
       raise ex
     end
   end
