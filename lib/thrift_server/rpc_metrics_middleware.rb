@@ -15,6 +15,7 @@ class ThriftServer
     rescue => ex
       if rpc.protocol_exception? ex
         statsd.increment "rpc.#{rpc.name}.exception"
+        statsd.increment "rpc.#{rpc.name}.exception.#{rpc.exception_name(ex)}"
       else
         statsd.increment "rpc.#{rpc.name}.error"
       end

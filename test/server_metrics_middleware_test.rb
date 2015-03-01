@@ -42,7 +42,7 @@ class ServerMetricsMiddlewareTest < MiniTest::Unit::TestCase
   end
 
   def test_known_protocol_exceptions
-    rpc.exceptions = [ TestError ]
+    rpc.exceptions = { memberName: TestError }
 
     app = stub
     app.stubs(:call).raises(TestError)

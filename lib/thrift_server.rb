@@ -17,11 +17,15 @@ class ThriftServer
   RPC = Struct.new(:name, :args, :exceptions) do
     def initialize(*)
       super
-      self.exceptions ||= [ ]
+      self.exceptions ||= { }
     end
 
     def protocol_exception?(ex)
-      exceptions.include? ex.class
+      exceptions.values.include? ex.class
+    end
+
+    def exception_name(ex)
+      exceptions.invert.fetch ex.class
     end
   end
 
@@ -83,12 +87,12 @@ class ThriftServer
 
         fields = service_namespace.const_get("#{result_class}_result".to_sym).const_get(:FIELDS)
 
-        exception_results = fields.values.select do |meta|
+        exception_fields = fields.values.select do |meta|
           meta.key?(:class) && meta.fetch(:class) < ::Thrift::Exception
         end
 
-        bucket[rpc_name] = exception_results.map do |meta|
-          meta.fetch :class
+        bucket[rpc_name] = exception_fields.each_with_object({ }) do |meta, exceptions|
+          exceptions[meta.fetch(:name).to_sym] = meta.fetch(:class)
         end
       end
 

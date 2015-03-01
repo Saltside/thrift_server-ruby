@@ -88,7 +88,7 @@ class AcceptanceTest < MiniTest::Unit::TestCase
       end
 
       def call(rpc)
-        if rpc.exceptions.include? TestException
+        if rpc.exceptions[:test] == TestException
           :ok
         else
           :missing_exception

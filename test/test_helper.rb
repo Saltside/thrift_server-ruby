@@ -29,7 +29,7 @@ TestException = Class.new Thrift::Exception
 
 class SimulatedResult
   FIELDS = {
-    'EXCEPTION' => { class: TestException }
+    'EXCEPTION' => { name: 'test', class: TestException }
   }
 end
 

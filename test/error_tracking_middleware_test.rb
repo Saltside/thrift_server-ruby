@@ -24,7 +24,7 @@ class ErrorTrackingMiddlewareTest < MiniTest::Unit::TestCase
   end
 
   def test_does_not_track_known_protocol_exceptions
-    rpc.exceptions = [ TestError ]
+    rpc.exceptions = { memberName: TestError }
 
     error = TestError.new
 

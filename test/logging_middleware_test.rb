@@ -9,7 +9,7 @@ class LoggingMiddlewareTest < MiniTest::Unit::TestCase
     @rpc = ThriftServer::RPC.new :foo, :bar
   end
 
-  def test_logs_incoming_rpcs_names
+  def test_logs_successfull_rpcs
     app = stub call: :result
 
     middleware = ThriftServer::LoggingMiddleware.new(app, logger)
@@ -18,6 +18,7 @@ class LoggingMiddlewareTest < MiniTest::Unit::TestCase
 
     assert_logged output, 'INFO'
     assert_logged output, rpc.name
+    assert_logged output, 'OK'
   end
 
   def test_logs_errors_not_defined_in_protocol
@@ -30,12 +31,16 @@ class LoggingMiddlewareTest < MiniTest::Unit::TestCase
       middleware.call rpc
     end
 
+    assert_logged output, 'INFO'
+    assert_logged output, rpc.name
+    assert_logged output, 'TestError'
+
     assert_logged output, 'ERROR'
     assert_logged output, 'TestError'
   end
 
   def test_does_not_log_known_protocol_exceptions
-    rpc.exceptions = [ TestError ]
+    rpc.exceptions = { memberName: TestError }
 
     app = stub
     app.stubs(:call).raises(TestError)
@@ -45,6 +50,10 @@ class LoggingMiddlewareTest < MiniTest::Unit::TestCase
     assert_raises TestError do
       middleware.call rpc
     end
+
+    assert_logged output, 'INFO'
+    assert_logged output, rpc.name
+    assert_logged output, :memberName
 
     refute_logged output, 'ERROR'
     refute_logged output, 'TestError'
