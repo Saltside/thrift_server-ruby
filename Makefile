@@ -27,8 +27,8 @@ test-unit: tmp/image
 test-network: tmp/image gen-rb/echo_service.rb
 	-@docker stop server > /dev/null 2>&1
 	-@docker rm -v server > /dev/null 2>&1
-	docker run -d --name server -v $(CURDIR):/usr/src/app $(APP) ruby echo_server.rb
-	docker run --rm -t -v $(CURDIR):/usr/src/app --link server:server $(APP) ruby echo_client.rb server 9090
+	docker run -d --name server $(APP) ruby echo_server.rb
+	docker run --rm -t --link server:server $(APP) ruby echo_client.rb server 9090
 
 .PHONY: test-ci
 test-ci: test-unit test-network
