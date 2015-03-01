@@ -4,13 +4,13 @@ class ThriftServer
 
     def call(rpc)
       app.call(rpc).tap do
-        logger.info "RPC: #{rpc.name} / OK"
+        logger.info "RPC: #{rpc.name} => OK"
       end
     rescue => ex
       if rpc.protocol_exception?(ex)
-        logger.info "RPC: #{rpc.name} / exception: #{rpc.exception_name(ex)}"
+        logger.info "RPC: #{rpc.name} => #{rpc.exception_name(ex)}"
       else
-        logger.info "RPC: #{rpc.name} / error: #{ex.class.name}"
+        logger.info "RPC: #{rpc.name} => Error! #{ex.class.name}"
         logger.error ex
       end
 
