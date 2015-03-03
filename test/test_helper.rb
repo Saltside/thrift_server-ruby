@@ -33,19 +33,35 @@ class SimulatedResult
   }
 end
 
-def Processor(*rpcs)
-  Class.new do
-    def initialize(handler)
-      @handler = handler
-    end
+module GenericService
+  class Processor
+    include Thrift::Processor
 
-    rpcs.each do |method_name|
-      define_method "process_#{method_name}" do |*args|
-        # nothing to do, this is just a stub to create objects inline
-        # with the generate thrift processors
-        @handler.send method_name, *args
-      end
+    def process_ping(*args)
+      @handler.ping(*args)
     end
+  end
+
+  class Ping_result
+    FIELDS = {
+      'EXCEPTION' => { name: 'ping_test', class: TestException }
+    }
+  end
+end
+
+module TestService
+  class Processor < GenericService::Processor
+    include Thrift::Processor
+
+    def process_getItems(*args)
+      @handler.getItems(*args)
+    end
+  end
+
+  class GetItems_result
+    FIELDS = {
+      'EXCEPTION' => { name: 'getItems_test', class: TestException }
+    }
   end
 end
 

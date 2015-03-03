@@ -4,7 +4,7 @@ class AcceptanceTest < MiniTest::Unit::TestCase
   attr_reader :service
 
   def setup
-    @service = create_service :getItems
+    @service = TestService
   end
 
   def wrap(service, &block)
@@ -48,6 +48,15 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     assert_match /error_tracker/, ex.to_s
   end
 
+  def test_wrap_accepts_processor_itself
+    handler = stub
+    handler.expects(:getItems).with(:request).returns(:response)
+
+    stack = wrap(TestService::Processor).new(handler)
+
+    assert_equal :response, stack.process_getItems(:request)
+  end
+
   def test_wraps_methods_defined_by_the_protocol
     handler = stub
     handler.expects(:getItems).with(:request).returns(:response)
@@ -88,7 +97,7 @@ class AcceptanceTest < MiniTest::Unit::TestCase
       end
 
       def call(rpc)
-        if rpc.exceptions[:test] == TestException
+        if rpc.exceptions[:getItems_test] == TestException
           :ok
         else
           :missing_exception
@@ -99,6 +108,28 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     stack.use test_middleware
 
     assert_equal :ok, stack.process_getItems(:request)
+  end
+
+  def test_correctly_detects_protocol_exceptions_from_inherited_service_in_other_namespace
+    stack = wrap(service).new(stub)
+
+    test_middleware = Class.new do
+      def initialize(app)
+        @app = app
+      end
+
+      def call(rpc)
+        if rpc.exceptions[:ping_test] == TestException
+          :ok
+        else
+          :missing_exception
+        end
+      end
+    end
+
+    stack.use test_middleware
+
+    assert_equal :ok, stack.process_ping(:request)
   end
 
   def test_cannot_add_middleware_to_stack_after_first_rpc
@@ -243,21 +274,5 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     end
 
     assert block_yielded, 'Block not used'
-  end
-
-  private
-
-  def create_service(*rpcs)
-    namespace = Module.new
-
-    rpcs.each do |rpc_name|
-      result_class = rpc_name.to_s
-      result_class[0] = result_class[0].upcase
-      namespace.const_set "#{result_class}_result", SimulatedResult
-    end
-
-    namespace.const_set(:Processor, Processor(*rpcs))
-
-    namespace
   end
 end
