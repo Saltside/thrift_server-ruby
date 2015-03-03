@@ -2,6 +2,18 @@ module ThriftServer
   class ServerMetricsSubscriber
     include Concord.new(:statsd)
 
+    def server_connection_opened(*)
+      statsd.gauge 'server.pool.active', '+1'
+    end
+
+    def server_connection_closed(*)
+      statsd.gauge 'server.pool.active', '-1'
+    end
+
+    def server_thread_pool_change(meta)
+      statsd.gauge('server.pool.size', '%+d' % [ meta.fetch(:delta) ])
+    end
+
     def rpc_incoming(rpc)
       statsd.increment 'rpc.incoming'
     end

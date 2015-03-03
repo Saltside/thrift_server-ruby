@@ -12,6 +12,26 @@ class ServerMetricsSubscriberTest < MiniTest::Unit::TestCase
     @rpc = ThriftServer::RPC.new :foo, :bar
   end
 
+  def test_server_connection_opened
+    statsd.expects(:gauge).with('server.pool.active', '+1')
+    subscriber.server_connection_opened :addr
+  end
+
+  def test_server_connection_closed
+    statsd.expects(:gauge).with('server.pool.active', '-1')
+    subscriber.server_connection_closed :addr
+  end
+
+  def test_server_thread_pool_change_with_positive_delta
+    statsd.expects(:gauge).with('server.pool.size', '+1')
+    subscriber.server_thread_pool_change delta: 1
+  end
+
+  def test_server_thread_pool_change_with_negative_delta
+    statsd.expects(:gauge).with('server.pool.size', '-1')
+    subscriber.server_thread_pool_change delta: -1
+  end
+
   def test_rpc_incoming
     statsd.expects(:increment).with('rpc.incoming')
 

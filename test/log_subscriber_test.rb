@@ -3,9 +3,33 @@ require_relative 'test_helper'
 class LogSubscriberTest < MiniTest::Unit::TestCase
   attr_reader :logger, :subscriber, :rpc
 
+  # Make it easy to assert on a string line generated through the standard lib
+  # progname & block syntax. This class will automatically yield the block and
+  # concat it the mock receives a single line. This also ensures the block
+  # is always executed, making sure it's free of errors
+  class LogYielder
+    include Concord.new(:log)
+
+    def info(msg)
+      if msg && block_given?
+        log.info "#{msg} #{yield}"
+      else
+        log.info msg
+      end
+    end
+
+    def error(msg)
+      if msg && block_given?
+        log.error "#{msg} #{yield}"
+      else
+        log.error msg
+      end
+    end
+  end
+
   def setup
     @logger = mock
-    @subscriber = ThriftServer::LogSubscriber.new logger
+    @subscriber = ThriftServer::LogSubscriber.new LogYielder.new(logger)
 
     @rpc = ThriftServer::RPC.new :foo, :bar
   end
@@ -35,6 +59,34 @@ class LogSubscriberTest < MiniTest::Unit::TestCase
     end
 
     subscriber.server_start server
+  end
+
+  def test_server_thread_pool_change
+    logger.expects(:info).with do |line|
+      line =~ /\+1/
+    end
+
+    subscriber.server_thread_pool_change delta: 1
+  end
+
+  def test_server_connection_opened
+    addr = stub ip_address: 'stub_ip', ip_port: 823
+
+    logger.expects(:info).with do |line|
+      line =~ /stub_ip/ && line =~ /823/
+    end
+
+    subscriber.server_connection_opened addr
+  end
+
+  def test_server_connection_closed
+    addr = stub ip_address: 'stub_ip', ip_port: 823
+
+    logger.expects(:info).with do |line|
+      line =~ /stub_ip/ && line =~ /823/
+    end
+
+    subscriber.server_connection_closed addr
   end
 
   def test_rpc_ok_logs_result_to_info

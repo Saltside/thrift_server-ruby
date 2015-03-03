@@ -59,7 +59,9 @@ published:
 * `rpc_error` - Handler raised an unexpected error (useful for error
   tracking)
 * `server_start` - Start started
-* `server_error` - Internal error happend in server outside handler
+* `server_connection_opened` - Client TCP connection
+* `server_connection_closed` - Client TCP disconnect
+* `server_thread_pool_change` - Thread pool grow/shinks
 
 The listener should implement a method. A listener will only receive
 notifications if the appropriate method is implemented. Here's an
