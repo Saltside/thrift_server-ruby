@@ -67,16 +67,16 @@ class ThriftServer
   end
 
   class << self
-    def build(processor, handler, options = { }, &block)
-      stack = wrap(processor, options, &block).new handler
+    def build(root, handler, options = { }, &block)
+      stack = wrap(root, options, &block).new handler
       transport = Thrift::ServerSocket.new options.fetch(:port, 9090)
       transport_factory = Thrift::FramedTransportFactory.new
 
       Thrift::ThreadPoolServer.new stack, transport, transport_factory, nil, options.fetch(:threads, 4)
     end
 
-    def wrap(service_namespace, options = { })
-      processor = service_namespace.const_get :Processor
+    def wrap(root, options = { })
+      processor = root < ::Thrift::Processor ? root : root.const_get(:Processor)
 
       processors = processor.ancestors.select do |ancestor|
         ancestor < ::Thrift::Processor

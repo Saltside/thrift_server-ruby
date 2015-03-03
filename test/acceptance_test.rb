@@ -48,6 +48,15 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     assert_match /error_tracker/, ex.to_s
   end
 
+  def test_wrap_accepts_processor_itself
+    handler = stub
+    handler.expects(:getItems).with(:request).returns(:response)
+
+    stack = wrap(TestService::Processor).new(handler)
+
+    assert_equal :response, stack.process_getItems(:request)
+  end
+
   def test_wraps_methods_defined_by_the_protocol
     handler = stub
     handler.expects(:getItems).with(:request).returns(:response)
