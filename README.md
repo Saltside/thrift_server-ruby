@@ -108,12 +108,13 @@ can customize statsd prefix & postfix on that instance.
 `ThriftServer::ServerMetricsSubscriber` instruments the following
 keys:
 
-* `rpc.latency` (timer)
-* `rpc.incoming` (counter)
-* `rpc.success` (counter)
-* `rpc.exception` (counter)
-* `rpc.error` (counter)
-* `server.error` (counter)
+* `rpc.latency` - (timer)
+* `rpc.incoming` - (counter)
+* `rpc.success` - (counter) - Everything A-OK!
+* `rpc.exception` - (counter) - Result was defined protocol exception
+* `rpc.error` - (counter) - Uncaught errors
+* `server.pool.size` - (guage) - Number of available threads
+* `server.pool.active` - (guage) - Threads with active TCP connections
 
 `ThriftServer::RpcMetricsSubscriber` produces the same metrics, but at
 an individual RPC level. Assume the RPC is named `foo`.
