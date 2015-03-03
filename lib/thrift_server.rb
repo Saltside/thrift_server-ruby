@@ -1,6 +1,7 @@
 require "thrift_server/version"
 
 require 'thrift'
+require 'thrift-validator'
 require 'middleware'
 require 'concord'
 require 'forwardable'
@@ -8,6 +9,7 @@ require 'honeybadger'
 require 'statsd-ruby'
 
 require_relative 'thrift_server/logging_middleware'
+require_relative 'thrift_server/validation_middleware'
 require_relative 'thrift_server/server_metrics_middleware'
 require_relative 'thrift_server/rpc_metrics_middleware'
 require_relative 'thrift_server/error_tracking_middleware'
@@ -135,6 +137,7 @@ class ThriftServer
       stack.use ServerMetricsMiddleware, statsd
       stack.use RpcMetricsMiddleware, statsd
       stack.use LoggingMiddleware, logger
+      stack.use ValidationMiddleware
 
       yield stack if block_given?
 
