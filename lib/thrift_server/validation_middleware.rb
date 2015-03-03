@@ -1,4 +1,4 @@
-class ThriftServer
+module ThriftServer
   class ValidationMiddleware
     include Concord.new(:app)
 

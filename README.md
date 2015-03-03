@@ -3,10 +3,10 @@
 Encapsulate bolierplate code and functionality for running Thrift
 servers in Ruby. Bundled functionality:
 
-* Error tracking
 * Metrics on each RPC
 * Logging on each RPC
 * Middleware based approaching making it easy to extend
+* Deep validation on outgoing protocol messages
 * Binary protocol
 * Framed transport
 * Thread pool sever
@@ -27,31 +27,103 @@ Or install it yourself as:
 
 ## Usage
 
-The libary is defined to wrapping Thrift's processor classes in useful
-functionality for production servers. You must provide objects
-required to implement the behavior. Here's an example from
-[echo\_server.rb](echo_server.rb).
+The library uses delegation to around a provided handler & Thrift
+processor to implement use production server behavior. There are two
+different ways to extend function: pub sub & middleware. Use pub sub
+for events & middleware when you want to modify the request & response
+before/after hitting the handler. Out of the box there is not extra
+behavior. Here's the bare bones useful server.
 
-    server = ThriftServer.build(EchoService::Processor, Handler.new, {
-        logger: Logger.new($stdout),
-        statsd: Statsd.new,
-        error_tracker: ErrorTracker.new
-    })
+    server = ThriftServer.build EchoService, Handler.new
 
-    # Now call serve to start it
-    server.serve
+	server.log Logger.new($stdout)
 
-The first arument is a generated `Thrift::Processor` subclass. The second
-is your implementation of the define protocol. The options hash
-defines all the misc objecs and settings. The following options are
-available:
+	server.start
 
-* `logger:` - a `Logger` instance
-* `statsd:` - a `Statsd` instance from the [statsd-ruby gem](https://github.com/reinh/statsd)
-* `error_tracker:` object that implement `#track(rpc, error)`. Use
-  `ThriftServer::HoneybaderErrorTracker` if unsure
-* `threads:` - number of threads to run. Defaults to `4`
-* `port:` - port to run server on. Defaults to `9090`
+The first arument is a module containing a generated
+`Thrift::Processor` subclass or the module itself. The following
+options are available:
+
+* `threads:` - number of threads to run. Defaults to `25`.
+* `port:` - port to run server on. Defaults to `9090`.
+
+## Pub Sub
+
+Subscriber objects may be attached. The following events are
+published:
+
+* `rpc_incoming` - published everytime the server receives an RPC
+* `rpc_ok` - Everything when according to plan
+* `rpc_exception` - Handler raised an exception defined in the
+  protocol
+* `rpc_error` - Handler raised an unexpected error (useful for error
+  tracking)
+* `server_start` - Start started
+* `server_error` - Internal error happend in server outside handler
+
+The listener should implement a method. A listener will only receive
+notifications if the appropriate method is implemented. Here's an
+example:
+
+	class Counter
+		def initialize
+			@counter = 0
+		end
+
+		def rpc_incoming(rpc)
+			@counter += 1
+		end
+	end
+
+    server = ThriftServer.build EchoService, Handler.new
+	server.subscribe Counter.new
+
+### Built-in Subscribers
+
+`ThriftServer` includes three subscribers: two for metrics and one for
+logging. The `ThriftServer::LogSubscriber` uses a standard library
+logger to print useful information when any of the previously
+mentioned events happen. Attaching the subscriber is so important that
+it has its own helper method.
+
+	server.log Logger.new($stdout)
+	# Same thing as above, just much longer
+	server.subscribe ThriftServer::LogSubscriber.new(Logger.new($stdout))
+
+The remaining two middlware handle metrics. Each handles a different
+metric granularity. `ThriftServer::ServerMetricsSubcriber` does stats
+for all RPCs & server things. `ThriftServer::RpcMetricsSubscriber`
+gives metrics for each individual RPC. Naturally there are important
+subscribers and its highly recommend you add them. There is a shortcut
+method for adding them both. They require a [statsd][] instance. You
+can customize statsd prefix & postfix on that instance.
+
+	server.metrics Statsd.new
+	# Same thing as above, just much longer
+	server.subscribe ThriftServer::ServerMetricsSubscriber.new(Statsd.new)
+	server.subscribe ThriftServer::RpcMetricsSubscriber.new(Statsd.new)
+
+`ThriftServer::ServerMetricsSubscriber` instruments the following
+keys:
+
+* `rpc.latency` (timer)
+* `rpc.incoming` (counter)
+* `rpc.success` (counter)
+* `rpc.exception` (counter)
+* `rpc.error` (counter)
+* `server.error` (counter)
+
+`ThriftServer::RpcMetricsSubscriber` produces the same metrics, but at
+an individual RPC level. Assume the RPC is named `foo`.
+keys:
+
+* `rpc.foo.latency` (timer)
+* `rpc.foo.incoming` (counter)
+* `rpc.foo.success` (counter)
+* `rpc.foo.exception` (counter)
+* `rpc.foo.exception.xxx` (counter) - where `xxx` is listed in
+  `throws` in the Thrift IDL.
+* `rpc.foo.error` (counter)
 
 ## Middleware
 
@@ -63,25 +135,26 @@ implement your own middleware easily. The middleware must respond to
 `args`. Here's an example that dumps the `args` to stdout.
 
     class ExampleMiddleware
-        include Concord.new(:app)
+		include Concord.new(:app)
 
-        def call(rpc)
-            puts rpc.args.inspect
-            app.call rpc
-        end
+		def call(rpc)
+			puts rpc.args.inspect
+			app.call rpc
+		end
     end
 
 New middleware can be added at build time or afterwards.
 
-    ThriftServer::build processor, handler, options do |stack|
-        stack.use ExampleMiddlware
-    end
+	ThriftServer::build processor, handler, options do |stack|
+		stack.use ExampleMiddlware
+	end
 
 Middleware can also be added after the server is built
 
-    server = ThriftServer::build processor, handler, options
-    server.use ExampleMiddleware
-    serve.serve # start it!
+	server = ThriftServer::build processor, handler, options
+	server.use ExampleMiddleware
+
+	server.start # start it!
 
 ## Implementation
 
@@ -95,10 +168,10 @@ wrap the handler provided in `initialize` in the delegate class.
 
 ## Development
 
-    $ vagrant up
-    $ vagrant ssh
-    $ cd /vagrant
-    $ make test-ci
+	$ vagrant up
+	$ vagrant ssh
+	$ cd /vagrant
+	$ make test-ci
 
 ## Contributing
 
@@ -106,3 +179,5 @@ wrap the handler provided in `initialize` in the delegate class.
 2. Commit your changes (`git commit -am 'Add some feature'`)
 3. Push to the branch (`git push origin my-new-feature`)
 4. Create a new Pull Request
+
+[statsd]: https://github.com/reinh/statsd

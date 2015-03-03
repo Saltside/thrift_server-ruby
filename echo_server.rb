@@ -27,20 +27,7 @@ class Handler
   end
 end
 
-class ErrorTracker
-  def track(*)
-
-  end
-end
-
-logger = Logger.new $stdout
-
-server = ThriftServer.build(EchoService, Handler.new, {
-  logger: logger,
-  statsd: Statsd.new,
-  error_tracker: ErrorTracker.new
-})
-
-logger.info 'Starting server'
+server = ThriftServer.build EchoService, Handler.new
+server.log Logger.new($stdout)
 
 server.serve

@@ -8,44 +8,11 @@ class AcceptanceTest < MiniTest::Unit::TestCase
   end
 
   def wrap(service, &block)
-    ThriftServer.wrap(service, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new,
-    }, &block)
+    ThriftServer.wrap service, &block
   end
 
-  def test_wrap_fails_if_no_logger
-    ex = assert_raises ArgumentError do
-      ThriftServer.wrap(service, {
-        statsd: FakeStatsd.new,
-        error_tracker: NullErrorTracker.new,
-      })
-    end
-
-    assert_match /logger/, ex.to_s
-  end
-
-  def test_wrap_fails_if_no_stats
-    ex = assert_raises ArgumentError do
-      ThriftServer.wrap(service, {
-        logger: NullLogger.new,
-        error_tracker: NullErrorTracker.new,
-      })
-    end
-
-    assert_match /statsd/, ex.to_s
-  end
-
-  def test_wrap_fails_if_no_error_tracker
-    ex = assert_raises ArgumentError do
-      ThriftServer.wrap(service, {
-        logger: NullLogger.new,
-        statsd: FakeStatsd.new
-      })
-    end
-
-    assert_match /error_tracker/, ex.to_s
+  def build(service, handler, &block)
+    ThriftServer.build service, handler, &block
   end
 
   def test_wrap_accepts_processor_itself
@@ -66,7 +33,7 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     assert_equal :response, stack.process_getItems(:request)
   end
 
-  def test_can_add_new_middleware_after_wrapping
+  def test_can_add_new_middleware_after_building
     handler = mock
     handler.expects(:getItems).with(:modified_args)
 
@@ -146,47 +113,16 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     assert_match /frozen/, ex.to_s
   end
 
-  def test_wrap_yields_the_middleware_stack
-    handler = mock
-    handler.expects(:getItems).with(:from_block)
-
-    test_middleware = Class.new do
-      def initialize(app)
-        @app = app
-      end
-
-      def call(env)
-        env.args = :from_block
-        @app.call env
-      end
-    end
-
-    stack_processor = wrap service do |stack|
-      stack.use test_middleware
-    end
-    stack = stack_processor.new(handler)
-
-    stack.process_getItems :request
-  end
-
   def test_build_returns_thread_pool_server
     handler = stub getItems: :response
-    server = ThriftServer.build(service, handler, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new
-    })
+    server = ThriftServer.build service, handler
 
-    assert_instance_of Thrift::ThreadPoolServer, server
+    assert_kind_of Thrift::ThreadPoolServer, server
   end
 
   def test_build_defaults_to_port_9090
     handler = stub getItems: :response
-    server = ThriftServer.build(service, handler, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new
-    })
+    server = ThriftServer.build service, handler
 
     assert_equal 9090, server.port
   end
@@ -194,32 +130,22 @@ class AcceptanceTest < MiniTest::Unit::TestCase
   def test_build_accepts_port_options
     handler = stub getItems: :response
     server = ThriftServer.build(service, handler, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new,
       port: 5000
     })
 
     assert_equal 5000, server.port
   end
 
-  def test_build_defaults_to_4_threads
+  def test_build_defaults_to_25_threads
     handler = stub getItems: :response
-    server = ThriftServer.build(service, handler, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new
-    })
+    server = ThriftServer.build service, handler
 
-    assert_equal 4, server.threads
+    assert_equal 25, server.threads
   end
 
   def test_build_accepts_threads_option
     handler = stub getItems: :response
     server = ThriftServer.build(service, handler, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new,
       threads: 8
     })
 
@@ -228,51 +154,144 @@ class AcceptanceTest < MiniTest::Unit::TestCase
 
   def test_builds_creates_server_with_framed_transport
     handler = stub getItems: :response
-    server = ThriftServer.build(service, handler, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new
-    })
+    server = ThriftServer.build service, handler
 
     assert_instance_of Thrift::FramedTransportFactory, server.transport_factory
   end
 
   def test_build_uses_server_socket_transport
     handler = stub getItems: :response
-    server = ThriftServer.build(service, handler, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new
-    })
+    server = ThriftServer.build service, handler
 
     assert_instance_of Thrift::ServerSocket, server.server_transport
   end
 
   def test_build_creates_server_with_binary_protocol
     handler = stub getItems: :response
-    server = ThriftServer.build(service, handler, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new
-    })
+    server = ThriftServer.build service, handler
 
     assert_instance_of Thrift::BinaryProtocolFactory, server.protocol_factory
   end
 
-  def test_build_accepts_a_block_to_customize_the_middleware_stack
-    handler = stub getItems: :response
-    block_yielded = false
+  def test_subscribers_receive_incoming_rpcs
+    handler = stub
+    handler.expects(:getItems).with(:request).returns(:response)
 
-    server = ThriftServer.build(service, handler, {
-      logger: NullLogger.new,
-      statsd: FakeStatsd.new,
-      error_tracker: NullErrorTracker.new
-    }) do |stack|
-      block_yielded = true
+    subscriber = stub
+    processor = wrap(service).new handler
 
-      assert_instance_of ThriftServer::MiddlewareStack, stack
+    processor.subscribe subscriber
+
+    subscriber.expects(:rpc_incoming).with do |request, meta|
+      request.name == :getItems
     end
 
-    assert block_yielded, 'Block not used'
+    processor.process_getItems(:request)
+  end
+
+  def test_subscribers_receive_successful_rpcs
+    handler = stub
+    handler.expects(:getItems).with(:request).returns(:response)
+
+    subscriber = stub
+    processor = wrap(service).new handler
+
+    processor.subscribe subscriber
+
+    subscriber.expects(:rpc_ok).with do |request, response, meta|
+      request.name == :getItems &&
+        response == :response &&
+        meta.fetch(:latency).is_a?(Float)
+    end
+
+    processor.process_getItems(:request)
+  end
+
+  def test_subscribers_receive_rpc_errors
+    error = StandardError.new
+
+    handler = stub
+    handler.expects(:getItems).with(:request).raises(error)
+
+    subscriber = stub
+    processor = wrap(service).new handler
+
+    processor.subscribe subscriber
+
+    subscriber.expects(:rpc_error).with do |request, ex, meta|
+      request.name == :getItems &&
+        ex == error &&
+        meta.fetch(:latency).is_a?(Float)
+    end
+
+    assert_raises StandardError do
+      processor.process_getItems :request
+    end
+  end
+
+  def test_subscribers_receive_documented_rpc_protocol_exceptions
+    error = TestException.new :placeholder
+
+    handler = stub
+    handler.expects(:getItems).with(:request).raises(error)
+
+    subscriber = stub
+    processor = wrap(service).new handler
+
+    processor.subscribe subscriber
+
+    subscriber.expects(:rpc_exception).with do |request, ex, meta|
+      request.name == :getItems &&
+        ex == error &&
+        meta.fetch(:latency).is_a?(Float)
+    end
+
+    assert_raises TestException do
+      processor.process_getItems :request
+    end
+  end
+
+  def test_shortcut_method_for_attaching_log_subscriber
+    ThriftServer::LogSubscriber.expects(:new).with(:stdout).returns(:logger)
+
+    server = build(service, stub) do |server|
+      server.log :stdout
+    end
+
+    assert_equal :logger, server.publisher.first
+  end
+
+  def test_shortcut_method_for_attaching_metrics
+    ThriftServer::ServerMetricsSubscriber.expects(:new).with(:statsd).returns(:server)
+    ThriftServer::RpcMetricsSubscriber.expects(:new).with(:statsd).returns(:rpc)
+
+    server = build(service, stub) do |server|
+      server.metrics :statsd
+    end
+
+    assert_includes server.publisher, :server
+    assert_includes server.publisher, :rpc
+  end
+
+  def test_attaching_subscribers_to_server
+    server = build(service, stub) do |server|
+      server.subscribe :tester
+    end
+
+    assert_includes server.publisher, :tester
+  end
+
+  def test_adding_middleware_to_server
+    test_middleware = Class.new do
+      include Concord.new(:app)
+
+      def call(env)
+        app.call env
+      end
+    end
+
+    server = build(service, stub) do |server|
+      server.use test_middleware
+    end
   end
 end
