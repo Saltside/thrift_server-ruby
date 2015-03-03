@@ -98,7 +98,9 @@ module ThriftServer
     extend Forwardable
 
     def_delegators :@processor, :use
-    def_delegators :@processor, :publisher, :subscribe
+    def_delegators :@processor, :publisher, :publish, :subscribe
+
+    attr_accessor :port
 
     def log(logger)
       subscribe LogSubscriber.new(logger)
@@ -108,15 +110,43 @@ module ThriftServer
       subscribe ServerMetricsSubscriber.new(statsd)
       subscribe RpcMetricsSubscriber.new(statsd)
     end
+
+    def threads
+      @thread_q.max
+    end
+
+    def protocol
+      @protocol_factory
+    end
+
+    def transport
+      @transport_factory
+    end
+
+    def server_transport
+      @server_transport
+    end
+
+    def start(dry_run: false)
+      publish :server_start, self
+
+      serve unless dry_run
+    end
   end
 
   class << self
     def build(root, handler, options = { })
       stack = wrap(root, options).new handler
-      transport = Thrift::ServerSocket.new options.fetch(:port, 9090)
+
+      threads, port = options.fetch(:threads, 25), options.fetch(:port, 9090)
+
+      transport = Thrift::ServerSocket.new port
       transport_factory = Thrift::FramedTransportFactory.new
 
-      Server.new(stack, transport, transport_factory, nil, options.fetch(:threads, 25)).tap do |server|
+      Server.new(stack, transport, transport_factory, nil, threads).tap do |server|
+        # Assign bookkeeping data that is spread across multiple objects
+        server.port = port
+
         yield server if block_given?
       end
     end
@@ -177,7 +207,7 @@ module ThriftServer
         def_delegators :@handler, :publisher
 
         def_delegators :stack, :use
-        def_delegators :publisher, :subscribe
+        def_delegators :publisher, :publish, :subscribe
 
         define_method :initialize do |handler|
           stack_delegator = Class.new HandlerWrapper

@@ -11,7 +11,7 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     ThriftServer.wrap service, &block
   end
 
-  def build(service, handler, &block)
+  def build(service, handler, options = { }, &block)
     ThriftServer.build service, handler, &block
   end
 
@@ -156,7 +156,7 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     handler = stub getItems: :response
     server = ThriftServer.build service, handler
 
-    assert_instance_of Thrift::FramedTransportFactory, server.transport_factory
+    assert_instance_of Thrift::FramedTransportFactory, server.transport
   end
 
   def test_build_uses_server_socket_transport
@@ -170,7 +170,7 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     handler = stub getItems: :response
     server = ThriftServer.build service, handler
 
-    assert_instance_of Thrift::BinaryProtocolFactory, server.protocol_factory
+    assert_instance_of Thrift::BinaryProtocolFactory, server.protocol
   end
 
   def test_subscribers_receive_incoming_rpcs
@@ -249,6 +249,17 @@ class AcceptanceTest < MiniTest::Unit::TestCase
     assert_raises TestException do
       processor.process_getItems :request
     end
+  end
+
+  def test_subscribers_receive_server_start
+    subscriber = mock
+    subscriber.expects(:server_start)
+
+    server = build(service, stub, threads: 10, port: 1965) do |server|
+      server.subscribe subscriber
+    end
+
+    server.start dry_run: true
   end
 
   def test_shortcut_method_for_attaching_log_subscriber

@@ -10,6 +10,33 @@ class LogSubscriberTest < MiniTest::Unit::TestCase
     @rpc = ThriftServer::RPC.new :foo, :bar
   end
 
+  def test_server_start
+    server = stub({
+      port: 9999,
+      threads: 30,
+      transport: 'StubTransport',
+      protocol: 'StubProtocol'
+    })
+
+    logger.expects(:info).with do |line|
+      line =~ /9999/
+    end
+
+    logger.expects(:info).with do |line|
+      line =~ /30/
+    end
+
+    logger.expects(:info).with do |line|
+      line =~ /StubTransport/
+    end
+
+    logger.expects(:info).with do |line|
+      line =~ /StubProtocol/
+    end
+
+    subscriber.server_start server
+  end
+
   def test_rpc_ok_logs_result_to_info
     logger.expects(:info).with do |line|
       assert_match /foo/, line, 'RPC name not printed'

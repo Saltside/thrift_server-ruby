@@ -30,4 +30,4 @@ end
 server = ThriftServer.build EchoService, Handler.new
 server.log Logger.new($stdout)
 
-server.serve
+server.start

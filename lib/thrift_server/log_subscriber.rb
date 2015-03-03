@@ -2,6 +2,24 @@ module ThriftServer
   class LogSubscriber
     include Concord.new(:logger)
 
+    def server_start(server)
+      logger.info("Server started on port %d" % [
+        server.port
+      ])
+
+      logger.info("-> Threads: %d" % [
+        server.threads
+      ])
+
+      logger.info("-> Transport: %s" % [
+        server.transport
+      ])
+
+      logger.info("-> Protocol: %s" % [
+        server.protocol
+      ])
+    end
+
     def rpc_ok(rpc, response, meta)
       logger.info("RPC: %s => OK (%.2fms)" % [
         rpc,
