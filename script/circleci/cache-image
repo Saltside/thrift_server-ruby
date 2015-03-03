@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -eou pipefail
+
+if [ ! -f "${1}.tar.gz" ]; then
+	docker pull "$2"
+	docker save "$2" | gzip --fast > "${1}.tar.gz"
+else
+	gunzip -c "${1}.tar.gz" | docker load
+fi

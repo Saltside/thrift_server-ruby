@@ -9,4 +9,6 @@ ADD thrift_server.gemspec /usr/src/app/thrift_server.gemspec
 
 RUN bundle install
 
+ADD . /usr/src/app
+
 CMD [ "bundle", "console" ]

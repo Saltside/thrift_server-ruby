@@ -23,13 +23,32 @@ transport.open
 protocol = Thrift::BinaryProtocol.new transport
 client = EchoService::Client.new protocol
 
-result = client.echo "testing"
+response = client.echo "testing"
 
-transport.close
-
-if result == 'testing'
+if response == 'testing'
   $stdout.puts 'OK'
 else
   $stderr.puts 'Message not echoed'
   abort
 end
+
+response = client.structEcho 'testing'
+
+if response.message == 'testing'
+  $stdout.puts 'OK'
+else
+  $stderr.puts 'Message not echoed'
+  abort
+end
+
+begin
+  client.structEcho 'exception'
+rescue EchoException
+  $stdout.puts 'OK'
+else
+  abort 'Protocol exception lost'
+end
+
+client.ping 'hello'
+
+transport.close

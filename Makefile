@@ -2,16 +2,22 @@ APP:=thrift_server
 
 .DEFAULT_GOAL:=build
 
-APP_RUN:=docker run --rm -t -v $(CURDIR):/usr/src/app $(APP)
+# CircleCI does not support --rm, so if the environment variable has
+# value, then don't include --rm.
+ifneq ($(shell echo $$CIRCLECI),)
+DOCKER_RUN:=docker run -it
+else
+DOCKER_RUN:=docker run --rm -it
+endif
 
 gen-rb/echo_service.rb: echo_service.thrift
-	docker run --rm -t -v $(CURDIR):/data thrift:0.9.2 \
+	$(DOCKER_RUN) -v $(CURDIR):/data thrift:0.9.2 \
 		thrift -o /data --gen rb /data/$<
 
 .PHONY: thrift
 thrift: gen-rb/echo_service.rb
 
-tmp/image: Dockerfile Gemfile lib/thrift_server/version.rb thrift_server.gemspec
+tmp/image: Dockerfile lib/thrift_server/version.rb thrift_server.gemspec gen-rb/echo_service.rb
 	docker build -t $(APP) .
 	mkdir -p $(@D)
 	docker inspect -f '{{.Id}}' $(APP) >> $@
@@ -19,19 +25,23 @@ tmp/image: Dockerfile Gemfile lib/thrift_server/version.rb thrift_server.gemspec
 .PHONY: build
 build: tmp/image
 
+.PHONY: test
+test: tmp/image
+	$(DOCKER_RUN) -v $(CURDIR):/usr/src/app $(APP) bundle exec rake
+
 .PHONY: test-unit
-test-unit: tmp/image
-	$(APP_RUN) bundle exec rake
+test-lib: tmp/image
+	$(DOCKER_RUN) $(APP) bundle exec rake
 
 .PHONY: test-network
 test-network: tmp/image gen-rb/echo_service.rb
 	-@docker stop server > /dev/null 2>&1
 	-@docker rm -v server > /dev/null 2>&1
-	docker run -d --name server -v $(CURDIR):/usr/src/app $(APP) ruby echo_server.rb
-	docker run --rm -t -v $(CURDIR):/usr/src/app --link server:server $(APP) ruby echo_client.rb server 9090
+	docker run -d --name server $(APP) ruby echo_server.rb
+	$(DOCKER_RUN) --link server:server $(APP) ruby echo_client.rb server 9090
 
 .PHONY: test-ci
-test-ci: test-unit test-network
+test-ci: test-lib test-network
 
 .PHONY: clean
 clean:

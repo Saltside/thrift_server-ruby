@@ -22,4 +22,22 @@ class ErrorTrackingMiddlewareTest < MiniTest::Unit::TestCase
       middleware.call rpc
     end
   end
+
+  def test_does_not_track_known_protocol_exceptions
+    rpc.exceptions = { memberName: TestError }
+
+    error = TestError.new
+
+    logger = mock
+    logger.expects(:track).never
+
+    app = stub
+    app.stubs(:call).raises(error)
+
+    middleware = ThriftServer::ErrorTrackingMiddleware.new app, logger
+
+    assert_raises TestError do
+      middleware.call rpc
+    end
+  end
 end

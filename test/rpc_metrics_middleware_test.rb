@@ -31,6 +31,27 @@ class RpcMetricsMiddlewareTest < MiniTest::Unit::TestCase
     statsd = mock
     statsd.expects(:increment).with('rpc.foo.incoming')
     statsd.expects(:increment).with('rpc.foo.error')
+    statsd.expects(:increment).with('rpc.foo.exception').never
+    statsd.expects(:time).with('rpc.foo.latency').yields.returns(:response)
+
+    middleware = ThriftServer::RpcMetricsMiddleware.new(app, statsd)
+
+    assert_raises TestError do
+      middleware.call rpc
+    end
+  end
+
+  def test_known_protocol_exceptions_are_counted
+    rpc.exceptions = { memberName: TestError }
+
+    app = stub
+    app.stubs(:call).raises(TestError)
+
+    statsd = mock
+    statsd.expects(:increment).with('rpc.foo.incoming')
+    statsd.expects(:increment).with('rpc.foo.error').never
+    statsd.expects(:increment).with('rpc.foo.exception')
+    statsd.expects(:increment).with('rpc.foo.exception.memberName')
     statsd.expects(:time).with('rpc.foo.latency').yields.returns(:response)
 
     middleware = ThriftServer::RpcMetricsMiddleware.new(app, statsd)

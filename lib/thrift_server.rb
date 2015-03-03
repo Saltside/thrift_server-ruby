@@ -14,7 +14,20 @@ require_relative 'thrift_server/error_tracking_middleware'
 require_relative 'thrift_server/honeybadger_error_tracker'
 
 class ThriftServer
-  RPC = Struct.new(:name, :args)
+  RPC = Struct.new(:name, :args, :exceptions) do
+    def initialize(*)
+      super
+      self.exceptions ||= { }
+    end
+
+    def protocol_exception?(ex)
+      exceptions.values.include? ex.class
+    end
+
+    def exception_name(ex)
+      exceptions.invert.fetch ex.class
+    end
+  end
 
   class MiddlewareStack < Middleware::Builder
     def finalize!
@@ -62,8 +75,26 @@ class ThriftServer
       Thrift::ThreadPoolServer.new stack, transport, transport_factory, nil, options.fetch(:threads, 4)
     end
 
-    def wrap(processor, options = { })
+    def wrap(service_namespace, options = { })
+      processor = service_namespace.const_get :Processor
+
       rpcs = processor.instance_methods.select { |m| m =~ /^process_(.+)$/ }
+      rpc_names = rpcs.map { |m| m.to_s.match(/^process_(.+)$/)[1].to_sym }
+
+      protocol_exceptions = rpc_names.each_with_object({ }) do |rpc_name, bucket|
+        result_class = rpc_name.to_s
+        result_class[0] = result_class[0].upcase
+
+        fields = service_namespace.const_get("#{result_class}_result".to_sym).const_get(:FIELDS)
+
+        exception_fields = fields.values.select do |meta|
+          meta.key?(:class) && meta.fetch(:class) < ::Thrift::Exception
+        end
+
+        bucket[rpc_name] = exception_fields.each_with_object({ }) do |meta, exceptions|
+          exceptions[meta.fetch(:name).to_sym] = meta.fetch(:class)
+        end
+      end
 
       logger = options.fetch :logger do
         fail ArgumentError, ':logger required'
@@ -93,11 +124,9 @@ class ThriftServer
         define_method :initialize do |handler|
           stack_delegator = Class.new StackDelegate
           stack_delegator.module_eval do
-            rpcs.each do |method|
-              rpc_name = method.to_s.match(/^process_(.+)$/)[1]
-
-              define_method rpc_name.to_sym do |*args|
-                call RPC.new(rpc_name, args)
+            rpc_names.each do |rpc_name|
+              define_method rpc_name do |*args|
+                call RPC.new(rpc_name, args, protocol_exceptions.fetch(rpc_name, [ ]))
               end
             end
           end

@@ -25,6 +25,14 @@ class NullErrorTracker
   end
 end
 
+TestException = Class.new Thrift::Exception
+
+class SimulatedResult
+  FIELDS = {
+    'EXCEPTION' => { name: 'test', class: TestException }
+  }
+end
+
 def Processor(*rpcs)
   Class.new do
     def initialize(handler)

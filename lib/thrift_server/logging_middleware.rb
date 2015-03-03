@@ -3,10 +3,17 @@ class ThriftServer
     include Concord.new(:app, :logger)
 
     def call(rpc)
-      logger.info "Incoming RPC: #{rpc.name}"
-      app.call rpc
+      app.call(rpc).tap do
+        logger.info "RPC: #{rpc.name} => OK"
+      end
     rescue => ex
-      logger.error ex
+      if rpc.protocol_exception?(ex)
+        logger.info "RPC: #{rpc.name} => #{rpc.exception_name(ex)}"
+      else
+        logger.info "RPC: #{rpc.name} => Error! #{ex.class.name}"
+        logger.error ex
+      end
+
       raise ex
     end
   end
