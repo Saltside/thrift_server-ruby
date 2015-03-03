@@ -78,21 +78,43 @@ class ThriftServer
     def wrap(service_namespace, options = { })
       processor = service_namespace.const_get :Processor
 
-      rpcs = processor.instance_methods.select { |m| m =~ /^process_(.+)$/ }
-      rpc_names = rpcs.map { |m| m.to_s.match(/^process_(.+)$/)[1].to_sym }
+      processors = processor.ancestors.select do |ancestor|
+        ancestor < ::Thrift::Processor
+      end
 
-      protocol_exceptions = rpc_names.each_with_object({ }) do |rpc_name, bucket|
-        result_class = rpc_name.to_s
-        result_class[0] = result_class[0].upcase
+      processor_rpcs = processors.each_with_object({ }) do |ancestor, bucket|
+        rpc_methods = ancestor.
+          instance_methods(include_superclass = false).
+          select { |m| m =~ /^process_(.+)$/ }
 
-        fields = service_namespace.const_get("#{result_class}_result".to_sym).const_get(:FIELDS)
-
-        exception_fields = fields.values.select do |meta|
-          meta.key?(:class) && meta.fetch(:class) < ::Thrift::Exception
+        rpc_names = rpc_methods.map do |rpc_method|
+          rpc_method.to_s.match(/^process_(.+)$/)[1]
         end
 
-        bucket[rpc_name] = exception_fields.each_with_object({ }) do |meta, exceptions|
-          exceptions[meta.fetch(:name).to_sym] = meta.fetch(:class)
+        bucket[ancestor] = rpc_names.map(&:to_sym)
+      end
+
+      rpc_names = processor_rpcs.flat_map do |_, values|
+        values
+      end
+
+      rpc_protocol_exceptions = processor_rpcs.each_with_object({ }) do |(processor_klass, rpcs), bucket|
+        rpcs.each do |rpc|
+          result_class = rpc.to_s
+          result_class[0] = result_class[0].upcase
+          result_class_name = "#{result_class}_result"
+
+          service_namespace = processor_klass.name.match(/^(.+)::Processor$/)[1]
+
+          fields = Object.const_get "#{service_namespace}::#{result_class_name}::FIELDS"
+
+          exception_fields = fields.values.select do |meta|
+            meta.key?(:class) && meta.fetch(:class) < ::Thrift::Exception
+          end
+
+          bucket[rpc] = exception_fields.each_with_object({ }) do |meta, exceptions|
+            exceptions[meta.fetch(:name).to_sym] = meta.fetch(:class)
+          end
         end
       end
 
@@ -126,7 +148,7 @@ class ThriftServer
           stack_delegator.module_eval do
             rpc_names.each do |rpc_name|
               define_method rpc_name do |*args|
-                call RPC.new(rpc_name, args, protocol_exceptions.fetch(rpc_name, [ ]))
+                call RPC.new(rpc_name, args, rpc_protocol_exceptions.fetch(rpc_name, [ ]))
               end
             end
           end
