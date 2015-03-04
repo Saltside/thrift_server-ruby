@@ -21,13 +21,13 @@ module ThriftServer
     end
 
     def server_thread_pool_change(meta)
-      logger.info 'server' do
+      logger.debug 'server' do
         "Thread pool change: %+d" % [ meta.fetch(:delta) ]
       end
     end
 
     def server_connection_opened(addr)
-      logger.info 'server' do
+      logger.debug 'server' do
         "%s:%d connected" % [
           addr.ip_address,
           addr.ip_port
@@ -36,7 +36,7 @@ module ThriftServer
     end
 
     def server_connection_closed(addr)
-      logger.info 'server' do
+      logger.debug 'server' do
         "%s:%d disconnected" % [
           addr.ip_address,
           addr.ip_port

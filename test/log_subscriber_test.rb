@@ -25,6 +25,14 @@ class LogSubscriberTest < MiniTest::Unit::TestCase
         log.error msg
       end
     end
+
+    def debug(msg)
+      if msg && block_given?
+        log.debug "#{msg} #{yield}"
+      else
+        log.debug msg
+      end
+    end
   end
 
   def setup
@@ -61,18 +69,26 @@ class LogSubscriberTest < MiniTest::Unit::TestCase
     subscriber.server_start server
   end
 
-  def test_server_thread_pool_change
-    logger.expects(:info).with do |line|
+  def test_server_thread_pool_change_with_positive_delta
+    logger.expects(:debug).with do |line|
       line =~ /\+1/
     end
 
     subscriber.server_thread_pool_change delta: 1
   end
 
+  def test_server_thread_pool_change_with_negative_delta
+    logger.expects(:debug).with do |line|
+      line =~ /-1/
+    end
+
+    subscriber.server_thread_pool_change delta: -1
+  end
+
   def test_server_connection_opened
     addr = stub ip_address: 'stub_ip', ip_port: 823
 
-    logger.expects(:info).with do |line|
+    logger.expects(:debug).with do |line|
       line =~ /stub_ip/ && line =~ /823/
     end
 
@@ -82,7 +98,7 @@ class LogSubscriberTest < MiniTest::Unit::TestCase
   def test_server_connection_closed
     addr = stub ip_address: 'stub_ip', ip_port: 823
 
-    logger.expects(:info).with do |line|
+    logger.expects(:debug).with do |line|
       line =~ /stub_ip/ && line =~ /823/
     end
 
