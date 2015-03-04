@@ -1,3 +1,3 @@
-class ThriftServer
-  VERSION = "0.1.1"
+module ThriftServer
+  VERSION = "0.2.0"
 end

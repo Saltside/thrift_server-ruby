@@ -5,17 +5,20 @@ require 'thrift-validator'
 require 'middleware'
 require 'concord'
 require 'forwardable'
-require 'honeybadger'
 require 'statsd-ruby'
 
-require_relative 'thrift_server/logging_middleware'
+require_relative 'thrift_server/instrumentation_middleware'
 require_relative 'thrift_server/validation_middleware'
-require_relative 'thrift_server/server_metrics_middleware'
-require_relative 'thrift_server/rpc_metrics_middleware'
-require_relative 'thrift_server/error_tracking_middleware'
-require_relative 'thrift_server/honeybadger_error_tracker'
 
-class ThriftServer
+require_relative 'thrift_server/server_metrics_subscriber'
+require_relative 'thrift_server/rpc_metrics_subscriber'
+require_relative 'thrift_server/log_subscriber'
+
+require_relative 'thrift_server/publisher'
+
+require_relative 'thrift_server/server'
+
+module ThriftServer
   RPC = Struct.new(:name, :args, :exceptions) do
     def initialize(*)
       super
@@ -29,6 +32,10 @@ class ThriftServer
     def exception_name(ex)
       exceptions.invert.fetch ex.class
     end
+
+    def to_s
+      name.to_s
+    end
   end
 
   class MiddlewareStack < Middleware::Builder
@@ -38,7 +45,7 @@ class ThriftServer
     end
   end
 
-  class StackDelegate
+  class HandlerWrapper
     class Dispatcher
       include Concord.new(:app, :handler)
 
@@ -49,15 +56,14 @@ class ThriftServer
 
     extend Forwardable
 
-    include Concord.new(:stack, :handler)
-
-    def_delegator :stack, :use
+    include Concord::Public.new(:stack, :publisher, :handler)
 
     def call(rpc)
       app.call rpc
     end
 
     private
+
     def app
       @app ||= finalize_stack!
     end
@@ -69,12 +75,20 @@ class ThriftServer
   end
 
   class << self
-    def build(root, handler, options = { }, &block)
-      stack = wrap(root, options, &block).new handler
-      transport = Thrift::ServerSocket.new options.fetch(:port, 9090)
+    def build(root, handler, options = { })
+      stack = wrap(root, options).new handler
+
+      threads, port = options.fetch(:threads, 25), options.fetch(:port, 9090)
+
+      transport = Thrift::ServerSocket.new port
       transport_factory = Thrift::FramedTransportFactory.new
 
-      Thrift::ThreadPoolServer.new stack, transport, transport_factory, nil, options.fetch(:threads, 4)
+      Server.new(stack, transport, transport_factory, nil, threads).tap do |server|
+        # Assign bookkeeping data that is spread across multiple objects
+        server.port = port
+
+        yield server if block_given?
+      end
     end
 
     def wrap(root, options = { })
@@ -120,34 +134,23 @@ class ThriftServer
         end
       end
 
-      logger = options.fetch :logger do
-        fail ArgumentError, ':logger required'
-      end
-
-      statsd = options.fetch :statsd do
-        fail ArgumentError, ':statsd required'
-      end
-
-      error_tracker = options.fetch :error_tracker do
-        fail ArgumentError, ':error_tracker required'
-      end
+      publisher = Publisher.new
 
       stack = MiddlewareStack.new
-      stack.use ErrorTrackingMiddleware, error_tracker
-      stack.use ServerMetricsMiddleware, statsd
-      stack.use RpcMetricsMiddleware, statsd
-      stack.use LoggingMiddleware, logger
+      stack.use InstrumentationMiddleware, publisher
       stack.use ValidationMiddleware
-
-      yield stack if block_given?
 
       wrapped = Class.new processor do
         extend Forwardable
 
-        def_delegator :@handler, :use
+        def_delegators :@handler, :stack
+        def_delegators :@handler, :publisher
+
+        def_delegators :stack, :use
+        def_delegators :publisher, :publish, :subscribe
 
         define_method :initialize do |handler|
-          stack_delegator = Class.new StackDelegate
+          stack_delegator = Class.new HandlerWrapper
           stack_delegator.module_eval do
             rpc_names.each do |rpc_name|
               define_method rpc_name do |*args|
@@ -156,7 +159,7 @@ class ThriftServer
             end
           end
 
-          super stack_delegator.new(stack, handler)
+          super stack_delegator.new(stack, publisher, handler)
         end
       end
 
