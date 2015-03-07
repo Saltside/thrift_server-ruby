@@ -27,7 +27,14 @@ class Handler
   end
 end
 
-server = ThriftServer.build EchoService, Handler.new
-server.log Logger.new($stdout)
-
-server.start
+if ARGV.include?('--threaded')
+  server = ThriftServer.threaded EchoService, Handler.new
+  server.log Logger.new($stdout)
+  server.start
+elsif ARGV.include?('--thread-pool')
+  server = ThriftServer.thread_pool EchoService, Handler.new
+  server.log Logger.new($stdout)
+  server.start
+else
+  abort 'No server option given'
+end

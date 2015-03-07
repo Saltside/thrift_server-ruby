@@ -2,25 +2,7 @@ module ThriftServer
   class LogSubscriber
     include Concord.new(:logger)
 
-    def server_start(server)
-      logger.info :server do
-        "Started on port %d" % [ server.port ]
-      end
-
-      logger.info :server do
-        "-> Threads: %d" % [ server.threads ]
-      end
-
-      logger.info :server do
-        "-> Transport: %s" % [ server.transport ]
-      end
-
-      logger.info :server do
-        "-> Protocol: %s" % [ server.protocol ]
-      end
-    end
-
-    def server_thread_pool_change(meta)
+    def thread_pool_server_pool_change(meta)
       logger.debug :server do
         "Thread pool change: %+d" % [ meta.fetch(:delta) ]
       end

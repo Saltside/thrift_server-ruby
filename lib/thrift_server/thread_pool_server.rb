@@ -1,5 +1,35 @@
 module ThriftServer
-  class Server < Thrift::ThreadPoolServer
+  class ThreadPoolServer < Thrift::ThreadPoolServer
+    class LogSubscriber
+      include Concord.new(:logger)
+
+      def server_start(server)
+        logger.info :server do
+          "Started on port %d" % [ server.port ]
+        end
+
+        logger.info :server do
+          "-> Threads: %d" % [ server.threads ]
+        end
+
+        logger.info :server do
+          "-> Transport: %s" % [ server.transport ]
+        end
+
+        logger.info :server do
+          "-> Protocol: %s" % [ server.protocol ]
+        end
+      end
+    end
+
+    class MetricsSubscriber
+      include Concord.new(:statsd)
+
+      def thread_pool_server_pool_change(meta)
+        statsd.gauge('server.pool.size', '%+d' % [ meta.fetch(:delta) ])
+      end
+    end
+
     extend Forwardable
 
     def_delegators :@processor, :use
@@ -9,9 +39,11 @@ module ThriftServer
 
     def log(logger)
       subscribe LogSubscriber.new(logger)
+      subscribe ThriftServer::LogSubscriber.new(logger)
     end
 
     def metrics(statsd)
+      subscribe MetricsSubscriber.new(statsd)
       subscribe ServerMetricsSubscriber.new(statsd)
       subscribe RpcMetricsSubscriber.new(statsd)
     end
@@ -45,7 +77,7 @@ module ThriftServer
       begin
         loop do
           @thread_q.push(:token)
-          publish :server_thread_pool_change, delta: 1
+          publish :thread_pool_server_pool_change, delta: 1
 
           Thread.new do
             begin
@@ -70,7 +102,7 @@ module ThriftServer
             rescue => e
               @exception_q.push(e)
             ensure
-              publish :server_thread_pool_change, delta: -1
+              publish :thread_pool_server_pool_change, delta: -1
               @thread_q.pop # thread died!
             end
           end

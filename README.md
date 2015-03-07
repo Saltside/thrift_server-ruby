@@ -3,13 +3,11 @@
 Encapsulate bolierplate code and functionality for running Thrift
 servers in Ruby. Bundled functionality:
 
-* Metrics on each RPC
-* Logging on each RPC
-* Middleware based approaching making it easy to extend
+* Metrics for server & RPCs
+* Logging for server events & RPCs
+* Middleware & pub-sub based approach making it easy to extend
 * Deep validation on outgoing protocol messages
-* Binary protocol
-* Framed transport
-* Thread pool sever
+* `Thrift::ThreadPoolServer` & `Thrift::ThreadedServer` support
 
 ## Installation
 
@@ -34,17 +32,40 @@ for events & middleware when you want to modify the request & response
 before/after hitting the handler. Out of the box there is not extra
 behavior. Here's the bare bones useful server.
 
-    server = ThriftServer.build EchoService, Handler.new
+	server = ThriftServer.threaded EchoService, Handler.new
 
 	server.log Logger.new($stdout)
 
 	server.start
 
 The first arument is a module containing a generated
-`Thrift::Processor` subclass or the module itself. The following
-options are available:
+`Thrift::Processor` subclass or the module itself. `ThriftServer`
+provides factories for building `Thrift::ThreadedServer` and
+`Thrift::ThreadPoolServer` instances.
 
-* `threads:` - number of threads to run. Defaults to `25`.
+### Threaded Servers
+
+	server = ThriftServer.threaded EchoService, Handler.new
+
+	server.log Logger.new($stdout)
+
+	server.start
+
+`ThriftServer.threaded` accepts the following options:
+
+* `port:` - port to run server on. Defaults to `9090`.
+
+### Thread Pool Servers
+
+	server = ThriftServer.thread_pool EchoService, Handler.new
+
+	server.log Logger.new($stdout)
+
+	server.start
+
+`ThriftServer.threaded` accepts the following options:
+
+* `threads:` - Pool size. Defaults to `25`.
 * `port:` - port to run server on. Defaults to `9090`.
 
 ## Pub Sub
@@ -61,7 +82,7 @@ published:
 * `server_start` - Start started
 * `server_connection_opened` - Client TCP connection
 * `server_connection_closed` - Client TCP disconnect
-* `server_thread_pool_change` - Thread pool grow/shinks
+* `thread_pool_server_pool_change` - Thread pool grow/shinks
 
 The listener should implement a method. A listener will only receive
 notifications if the appropriate method is implemented. Here's an
@@ -77,7 +98,7 @@ example:
 		end
 	end
 
-    server = ThriftServer.build EchoService, Handler.new
+	server = ThriftServer.threaded EchoService, Handler.new
 	server.subscribe Counter.new
 
 ### Built-in Subscribers
@@ -114,7 +135,7 @@ keys:
 * `rpc.exception` - (counter) - Result was defined protocol exception
 * `rpc.error` - (counter) - Uncaught errors
 * `server.pool.size` - (guage) - Number of available threads
-* `server.pool.active` - (guage) - Threads with active TCP connections
+* `server.connection.active` - (guage) - Threads with active TCP connections
 
 `ThriftServer::RpcMetricsSubscriber` produces the same metrics, but at
 an individual RPC level. Assume the RPC is named `foo`.
@@ -148,13 +169,13 @@ implement your own middleware easily. The middleware must respond to
 
 New middleware can be added at build time or afterwards.
 
-	ThriftServer::build processor, handler, options do |stack|
+	ThriftServer.threaded processor, handler, options do |stack|
 		stack.use ExampleMiddlware
 	end
 
 Middleware can also be added after the server is built
 
-	server = ThriftServer::build processor, handler, options
+	server = ThriftServer.threaded processor, handler, options
 	server.use ExampleMiddleware
 
 	server.start # start it!

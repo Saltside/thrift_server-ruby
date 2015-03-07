@@ -3,38 +3,6 @@ require_relative 'test_helper'
 class LogSubscriberTest < MiniTest::Unit::TestCase
   attr_reader :logger, :subscriber, :rpc
 
-  # Make it easy to assert on a string line generated through the standard lib
-  # progname & block syntax. This class will automatically yield the block and
-  # concat it the mock receives a single line. This also ensures the block
-  # is always executed, making sure it's free of errors
-  class LogYielder
-    include Concord.new(:log)
-
-    def info(msg)
-      if msg && block_given?
-        log.info "#{msg} #{yield}"
-      else
-        log.info msg
-      end
-    end
-
-    def error(msg)
-      if msg && block_given?
-        log.error "#{msg} #{yield}"
-      else
-        log.error msg
-      end
-    end
-
-    def debug(msg)
-      if msg && block_given?
-        log.debug "#{msg} #{yield}"
-      else
-        log.debug msg
-      end
-    end
-  end
-
   def setup
     @logger = mock
     @subscriber = ThriftServer::LogSubscriber.new LogYielder.new(logger)
@@ -42,47 +10,20 @@ class LogSubscriberTest < MiniTest::Unit::TestCase
     @rpc = ThriftServer::RPC.new :foo, :bar
   end
 
-  def test_server_start
-    server = stub({
-      port: 9999,
-      threads: 30,
-      transport: 'StubTransport',
-      protocol: 'StubProtocol'
-    })
-
-    logger.expects(:info).with do |line|
-      line =~ /9999/
-    end
-
-    logger.expects(:info).with do |line|
-      line =~ /30/
-    end
-
-    logger.expects(:info).with do |line|
-      line =~ /StubTransport/
-    end
-
-    logger.expects(:info).with do |line|
-      line =~ /StubProtocol/
-    end
-
-    subscriber.server_start server
-  end
-
-  def test_server_thread_pool_change_with_positive_delta
+  def test_thread_pool_server_pool_change_with_positive_delta
     logger.expects(:debug).with do |line|
       line =~ /\+1/
     end
 
-    subscriber.server_thread_pool_change delta: 1
+    subscriber.thread_pool_server_pool_change delta: 1
   end
 
-  def test_server_thread_pool_change_with_negative_delta
+  def test_thread_pool_server_pool_change_with_negative_delta
     logger.expects(:debug).with do |line|
       line =~ /-1/
     end
 
-    subscriber.server_thread_pool_change delta: -1
+    subscriber.thread_pool_server_pool_change delta: -1
   end
 
   def test_server_connection_opened
