@@ -16,7 +16,8 @@ require_relative 'thrift_server/log_subscriber'
 
 require_relative 'thrift_server/publisher'
 
-require_relative 'thrift_server/server'
+require_relative 'thrift_server/thread_pool_server'
+require_relative 'thrift_server/threaded_server'
 
 module ThriftServer
   RPC = Struct.new(:name, :args, :exceptions) do
@@ -75,7 +76,7 @@ module ThriftServer
   end
 
   class << self
-    def build(root, handler, options = { })
+    def thread_pool(root, handler, options = { })
       stack = wrap(root, options).new handler
 
       threads, port = options.fetch(:threads, 25), options.fetch(:port, 9090)
@@ -83,7 +84,23 @@ module ThriftServer
       transport = Thrift::ServerSocket.new port
       transport_factory = Thrift::FramedTransportFactory.new
 
-      Server.new(stack, transport, transport_factory, nil, threads).tap do |server|
+      ThreadPoolServer.new(stack, transport, transport_factory, nil, threads).tap do |server|
+        # Assign bookkeeping data that is spread across multiple objects
+        server.port = port
+
+        yield server if block_given?
+      end
+    end
+
+    def threaded(root, handler, options = { })
+      stack = wrap(root, options).new handler
+
+      port = options.fetch :port, 9090
+
+      transport = Thrift::ServerSocket.new port
+      transport_factory = Thrift::FramedTransportFactory.new
+
+      ThreadedServer.new(stack, transport, transport_factory).tap do |server|
         # Assign bookkeeping data that is spread across multiple objects
         server.port = port
 
