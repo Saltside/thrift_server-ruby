@@ -46,6 +46,22 @@ class LogSubscriberTest < MiniTest::Unit::TestCase
     subscriber.server_connection_closed addr
   end
 
+  def test_server_internal_error
+    error = Thrift::TransportException.new
+    addr = stub ip_address: 'stub_ip', ip_port: 823
+
+    logger.expects(:info).with do |line|
+      assert_includes line, addr.ip_address
+      assert_includes line, addr.ip_port.to_s
+      assert_match /Error/, line
+      assert_includes line, error.class.name
+    end
+
+    logger.expects(:error).with(error)
+
+    subscriber.server_internal_error addr, error
+  end
+
   def test_rpc_ok_logs_result_to_info
     logger.expects(:info).with do |line|
       assert_match /foo/, line, 'RPC name not printed'

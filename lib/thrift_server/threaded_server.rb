@@ -71,7 +71,8 @@ module ThriftServer
               loop do
                 @processor.process(p, p)
               end
-            rescue Thrift::TransportException, Thrift::ProtocolException
+            rescue Thrift::TransportException, Thrift::ProtocolException => ex
+              publish :server_internal_error, remote_address, ex
             ensure
               publish :server_connection_closed, remote_address
 

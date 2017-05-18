@@ -94,8 +94,10 @@ module ThriftServer
                     @processor.process(prot, prot)
                   end
                 rescue Thrift::TransportException, Thrift::ProtocolException => e
-                  publish :server_connection_closed, remote_address
+                  publish :server_internal_error, remote_address, ex
                 ensure
+                  publish :server_connection_closed, remote_address
+
                   trans.close
                 end
               end

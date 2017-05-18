@@ -10,6 +10,10 @@ module ThriftServer
       statsd.gauge 'server.connection.active', '-1'
     end
 
+    def server_internal_error(_ex)
+      statsd.increment 'server.internal_error'
+    end
+
     def rpc_incoming(rpc)
       statsd.increment 'rpc.incoming'
     end
