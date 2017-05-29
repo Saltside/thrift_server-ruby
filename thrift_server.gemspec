@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.name          = "thrift_server"
   spec.version       = ThriftServer::VERSION
   spec.authors       = ["ahawkins"]
-  spec.email         = ["adam@saltside.se"]
+  spec.email         = ["hi@ahawkins.me"]
   spec.summary       = %q{Encapsulate error handling, logging, and metrics for thrift servers}
   spec.description   = %q{}
   spec.homepage      = "https://github.com/saltside/thrift_server-ruby"
