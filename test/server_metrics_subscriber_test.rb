@@ -22,6 +22,11 @@ class ServerMetricsSubscriberTest < MiniTest::Unit::TestCase
     subscriber.server_connection_closed :addr
   end
 
+  def test_server_internal_error
+    statsd.expects(:increment).with('server.internal_error')
+    subscriber.server_internal_error Exception.new
+  end
+
   def test_rpc_incoming
     statsd.expects(:increment).with('rpc.incoming')
 

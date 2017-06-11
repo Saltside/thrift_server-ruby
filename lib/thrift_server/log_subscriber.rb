@@ -26,6 +26,18 @@ module ThriftServer
       end
     end
 
+    def server_internal_error(addr, ex)
+      logger.info :server do
+        "%s:%d => Error! %s" % [
+          addr.ip_address,
+          addr.ip_port,
+          ex.class.name
+        ]
+      end
+
+      logger.error ex
+    end
+
     def rpc_ok(rpc, response, meta)
       logger.info :processor do
         "%s => OK (%.2fms)" % [
