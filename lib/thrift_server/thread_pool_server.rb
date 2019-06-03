@@ -83,9 +83,15 @@ module ThriftServer
             begin
               loop do
                 client = @server_transport.accept
-                remote_address = client.handle.remote_address
 
-                publish :server_connection_opened, remote_address
+                skip_publishing = false
+                begin
+                  remote_address = client.handle.remote_address
+                  publish :server_connection_opened, remote_address
+                rescue => ex
+                  skip_publishing = true
+                  logger.error ex
+                end
 
                 trans = @transport_factory.get_transport(client)
                 prot = @protocol_factory.get_protocol(trans)
@@ -94,7 +100,7 @@ module ThriftServer
                     @processor.process(prot, prot)
                   end
                 rescue Thrift::TransportException, Thrift::ProtocolException => e
-                  publish :server_connection_closed, remote_address
+                  publish(:server_connection_closed, remote_address) unless skip_publishing
                 ensure
                   trans.close
                 end
