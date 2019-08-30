@@ -1,6 +1,6 @@
 require_relative 'test_helper'
 
-class LogSubscriberTest < MiniTest::Unit::TestCase
+class LogSubscriberTest <  Minitest::Test
   attr_reader :logger, :subscriber, :rpc
 
   def setup

@@ -1,6 +1,6 @@
 require_relative 'test_helper'
 
-class ProcessorTest < MiniTest::Unit::TestCase
+class ProcessorTest < Minitest::Test
   attr_reader :service
 
   def setup
