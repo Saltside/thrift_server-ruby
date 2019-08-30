@@ -59,6 +59,8 @@ module ThriftServer
 
     include Concord::Public.new(:stack, :publisher, :handler)
 
+    attr_reader :publisher, :handler, :stack
+
     def call(rpc)
       app.call rpc
     end

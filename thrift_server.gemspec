@@ -29,4 +29,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "mocha"
   spec.add_development_dependency "logger-better"
   spec.add_development_dependency "benchmark-ips"
+  spec.add_development_dependency "minitest"
 end

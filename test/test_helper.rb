@@ -5,7 +5,7 @@ require 'stringio'
 require 'logger-better'
 
 require 'minitest/autorun'
-require 'mocha/mini_test'
+require 'mocha/minitest'
 
 require_relative 'support/server_tests'
 require_relative 'support/log_yielder'

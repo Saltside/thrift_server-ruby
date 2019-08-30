@@ -1,6 +1,6 @@
 require_relative 'test_helper'
 
-class ServerMetricsSubscriberTest < MiniTest::Unit::TestCase
+class ServerMetricsSubscriberTest < Minitest::Test
   TestError = Class.new StandardError
 
   attr_reader :subscriber, :rpc, :statsd
