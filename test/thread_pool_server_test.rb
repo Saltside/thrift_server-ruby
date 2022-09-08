@@ -1,6 +1,6 @@
 require_relative 'test_helper'
 
-class ThreadPoolSeverTest < MiniTest::Unit::TestCase
+class ThreadPoolSeverTest < Minitest::Test
   include ServerTests
 
   attr_reader :service

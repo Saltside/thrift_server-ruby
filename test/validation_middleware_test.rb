@@ -1,6 +1,6 @@
 require_relative 'test_helper'
 
-class ValidationMiddlewareTest < MiniTest::Unit::TestCase
+class ValidationMiddlewareTest < Minitest::Test
   class StructResponse
     include ::Thrift::Struct
 
