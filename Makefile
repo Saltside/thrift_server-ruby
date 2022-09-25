@@ -2,13 +2,7 @@ APP:=thrift_server
 
 .DEFAULT_GOAL:=build
 
-# CircleCI does not support --rm, so if the environment variable has
-# value, then don't include --rm.
-ifneq ($(shell echo $$CIRCLECI),)
-DOCKER_RUN:=docker run -it
-else
 DOCKER_RUN:=docker run --rm -it
-endif
 
 gen-rb/echo_service.rb: echo_service.thrift
 	$(DOCKER_RUN) -v $(CURDIR):/data thrift:0.9.2 \
