@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+# This script executes all scripts in `pre-command.d`. This is
+# intended to ease sharing of buildkite hooks.
+
+set -euo pipefail
+
+# This happens to be the correct path when running on Buildkite...
+hookdir="$PWD/.buildkite/hooks/pre-command.d"
+
+find "${hookdir}" -type f -executable -print | sort | while read script; do
+        echo "--- :zap: Running pre-command hook $(basename ${script})"
+        ${script}
+done
